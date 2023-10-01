@@ -98,7 +98,7 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         String decodedString = charset.decode(receivedMessage).toString();
 
         String responseMessage = "player," + playerName + "," + decodedString;
-        log.info(responseMessage);
+        // log.info(responseMessage);
         byte[] byteArray = responseMessage.getBytes(charset);
         // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
         for (WebSocketSession clientSession : sessions.values()) {
