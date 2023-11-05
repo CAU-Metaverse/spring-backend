@@ -130,7 +130,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     			nextGameTimer(0); //현재 라운드 진행중
     			//결과는?
     			nextGameTimer(1); //라운드 끝. 대기시간
-    			
+    			gameSessions.clear();
     		}catch(Exception e) {
     			e.printStackTrace();
     		}
@@ -298,6 +298,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         String playerName = getPlayerName(session);
         sessions.remove(playerName);
+        if(gameSessions.containsKey(playerName))
+        	gameSessions.remove(playerName);
+
+        
         playerCount.decrementAndGet();
         System.out.println(playerName + " disconnected.");
         
@@ -330,3 +334,4 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         return null;
     }
 }
+//sendMessage 수정, 오류테스트 필요
