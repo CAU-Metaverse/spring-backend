@@ -44,16 +44,18 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         List<Integer> intList = new ArrayList<>();
         List<Integer> keyList = new ArrayList<>();
         int playerNumber = playerCount.incrementAndGet();
-        for(int i =1;i<=maxCount.get();i++){
+        for(int i =1;i<=maxCount.get();i++){//1번부터
             intList.add(i);
         }
         String currentPlayers="";
         for(Map.Entry item : sessions.entrySet()){
             keyList.add(Integer.parseInt((String) item.getKey()));
         }
+        
+        ////////////
         List<Integer> missingElements = findMissingElements(intList,keyList);
         if(!missingElements.isEmpty()){
-            playerNumber=missingElements.get(0);
+            playerNumber=missingElements.get(0); // 번호 돌려쓰기
         }
         sessions.put(String.valueOf(playerNumber), session);
         String message = "connected," + playerNumber;
