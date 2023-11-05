@@ -14,6 +14,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MyWebSocketHandler extends TextWebSocketHandler {
 
     private static Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
+    private static Map<String, String> colorSessions = new ConcurrentHashMap<>();
     private static AtomicInteger playerCount = new AtomicInteger(0);
 
     private static AtomicInteger maxCount = new AtomicInteger(0);
@@ -38,6 +40,14 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        // 랜덤 색상 부여
+        Random random = new Random();
+        int r = random.nextInt(256); // 0에서 255 사이의 임의의 R 값 생성
+        int g = random.nextInt(256); // 0에서 255 사이의 임의의 G 값 생성
+        int b = random.nextInt(256); // 0에서 255 사이의 임의의 B 값 생성
+        String hexColor = String.format("%02X%02X%02X", r, g, b);
+        log.info("Random RGB Color: {}", hexColor);
+        // 기존 로직
         if(maxCount.get()<playerCount.get()){
             maxCount=playerCount;
         }
@@ -56,10 +66,12 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
             playerNumber=missingElements.get(0);
         }
         sessions.put(String.valueOf(playerNumber), session);
-        String message = "connected," + playerNumber;
+        colorSessions.put(String.valueOf(playerNumber), hexColor);
+        String message = "connected";
 
-        for(Map.Entry item : sessions.entrySet()){
+        for(Map.Entry item : colorSessions.entrySet()){
             currentPlayers += (String) item.getKey()+",";
+            message+="," + item.getKey() + "," + item.getValue();
         }
 
         log.info(message);
@@ -118,9 +130,9 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         String playerName = getPlayerName(session);
         sessions.remove(playerName);
+        colorSessions.remove(playerName);
         playerCount.decrementAndGet();
-        System.out.println(playerName + " disconnected.");
-
+        log.info("{} has disconnected.", playerName);
         String message = "disconnected," + playerName;
         String currentPlayers="";
         for(Map.Entry item : sessions.entrySet()){
