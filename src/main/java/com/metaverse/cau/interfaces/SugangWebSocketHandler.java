@@ -30,6 +30,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	private static AtomicInteger sugangPlayerCount = new AtomicInteger(0);
 	
 	
+	
 	private static int secondsToPlay;
 	private static Timer timer; // 30초 카운트를 위한 카운터
 	private static TimerTask task;
@@ -67,7 +68,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 					nextTimer.cancel();
 					
 				}
-				
+				// 0 현재 라운드가 다 끝나면 MyWebSocketHandler로 넘겨줘야함.
 			}
 		};
 		nextTimer.schedule(nextTask,0,1000);
