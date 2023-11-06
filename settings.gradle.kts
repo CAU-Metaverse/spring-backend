@@ -1,1 +1,1 @@
-rootProject.name = "cau"
+rootProject.name = "spring-backend"
