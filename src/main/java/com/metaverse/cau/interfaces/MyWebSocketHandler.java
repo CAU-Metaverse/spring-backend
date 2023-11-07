@@ -1,5 +1,7 @@
 package com.metaverse.cau.interfaces;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.metaverse.cau.dto.UserInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -11,10 +13,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -23,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MyWebSocketHandler extends TextWebSocketHandler {
 
     private static Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
-    private static Map<String, String> colorSessions = new ConcurrentHashMap<>();
+    private static Map<String, UserInfo> userInfoSessions = new ConcurrentHashMap<>();
     private static AtomicInteger playerCount = new AtomicInteger(0);
 
     private static AtomicInteger maxCount = new AtomicInteger(0);
@@ -40,6 +39,8 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        // 유저 정보 초기화
+        UserInfo userInfo = new UserInfo();
         // 랜덤 색상 부여
         Random random = new Random();
         int r = random.nextInt(256); // 0에서 255 사이의 임의의 R 값 생성
@@ -66,12 +67,14 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
             playerNumber=missingElements.get(0);
         }
         sessions.put(String.valueOf(playerNumber), session);
-        colorSessions.put(String.valueOf(playerNumber), hexColor);
+        userInfo.setPlayerName(String.valueOf(playerNumber));
+        userInfo.setHexColor(hexColor);
+        userInfoSessions.put(String.valueOf(playerNumber), userInfo);
         String message = "connected";
 
-        for(Map.Entry item : colorSessions.entrySet()){
+        for(Map.Entry<String, UserInfo> item : userInfoSessions.entrySet()){
             currentPlayers += (String) item.getKey()+",";
-            message+="," + item.getKey() + "," + item.getValue();
+            message+="," + item.getKey() + "," + item.getValue().getHexColor();
         }
 
         log.info(message);
@@ -108,19 +111,49 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         ByteBuffer receivedMessage = message.getPayload();
         Charset charset = Charset.forName("UTF-8"); // 사용할 문자 인코딩
         String decodedString = charset.decode(receivedMessage).toString();
+        if(decodedString.startsWith("nickname")){
+            String[] parts = decodedString.split(",");
+           // String responseMessage = "userInfo," + playerName+","+"nickname,"+parts[1]+",avatar,"+parts[3];
+            UserInfo userInfo = userInfoSessions.get(playerName);
+            userInfo.setNickname(parts[1]);
+            userInfo.setAvatar(parts[3]);
 
-        String responseMessage = "player," + playerName + "," + decodedString;
-        // log.info(responseMessage);
-        byte[] byteArray = responseMessage.getBytes(charset);
-        // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
-        for (WebSocketSession clientSession : sessions.values()) {
-            if (clientSession.isOpen()) {
-                try {
-                    synchronized (session) {
-                        clientSession.sendMessage(new TextMessage(byteArray));
+            // Map을 List<Map>으로 변환
+            List<Map<String, UserInfo>> jsonSessionArray = new ArrayList<>();
+            for(String key : userInfoSessions.keySet()){
+                Map<String, UserInfo> jsonSession = new HashMap<>();
+                jsonSession.put(key, userInfoSessions.get(key));
+                jsonSessionArray.add(jsonSession);
+            }
+
+            // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
+            for (WebSocketSession clientSession : sessions.values()) {
+                if (clientSession.isOpen()) {
+                    try {
+                        synchronized (session) {
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            String jsonResponse = objectMapper.writeValueAsString(jsonSessionArray);
+                            log.info("jsonResponse : " + jsonResponse);
+                            clientSession.sendMessage(new TextMessage("userInfo+"+jsonResponse));
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
                     }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                }
+            }
+        }else{
+            String responseMessage = "player," + playerName + "," + decodedString;
+            byte[] byteArray = responseMessage.getBytes(charset);
+            // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
+            for (WebSocketSession clientSession : sessions.values()) {
+                if (clientSession.isOpen()) {
+                    try {
+                        synchronized (session) {
+                            clientSession.sendMessage(new TextMessage(byteArray));
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
@@ -130,7 +163,7 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         String playerName = getPlayerName(session);
         sessions.remove(playerName);
-        colorSessions.remove(playerName);
+        userInfoSessions.remove(playerName);
         playerCount.decrementAndGet();
         log.info("{} has disconnected.", playerName);
         String message = "disconnected," + playerName;
