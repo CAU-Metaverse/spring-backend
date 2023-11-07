@@ -240,9 +240,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		seatsLeft.set(playUsers);
 		
     	if( msg.equals("join_sugangBattle") && playFlag ==0) {// 배틀에 참여
-    		if(sugangPlayerCount.get()>=1)
-    		playGameTimer();
-    		sugangPlayerCount.incrementAndGet();
+			sugangPlayerCount.incrementAndGet();
+    		if(sugangPlayerCount.get()>=1) {
+				playGameTimer();
+			}
     		gameSessions.put(String.valueOf(playerName),session);
 
 
