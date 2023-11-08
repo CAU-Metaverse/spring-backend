@@ -2,7 +2,6 @@ package com.metaverse.cau.interfaces;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Timer;
@@ -30,7 +29,6 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	private static AtomicInteger sugangPlayerCount = new AtomicInteger(0);
 	
 	
-	
 	private static int secondsToPlay;
 	private static Timer timer; // 30초 카운트를 위한 카운터
 	private static TimerTask task;
@@ -55,9 +53,9 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			    		WebSocketSession toSendSession = sessions.get(key);
 			    		try {
 			    			if(flag ==1)//다음 라운드 대기중
-			    				toSendSession.sendMessage(new TextMessage("Battle:Next:timeLeft:"+secToPlay)); // 시작남은시간
+			    				toSendSession.sendMessage(new TextMessage("NextBattle:timeLeft:"+secToPlay)); // 시작남은시간
 			    			if(flag == 0)// 현재 라운드 남은시간
-			    				toSendSession.sendMessage(new TextMessage("Battle:This:timeLeft:"+secToPlay)); // 시작남은시간
+			    				toSendSession.sendMessage(new TextMessage("ThisBattle:timeLeft:"+secToPlay)); // 시작남은시간
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
 			    		}
@@ -68,7 +66,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 					nextTimer.cancel();
 					
 				}
-				// 0 현재 라운드가 다 끝나면 MyWebSocketHandler로 넘겨줘야함.
+				
 			}
 		};
 		nextTimer.schedule(nextTask,0,1000);
@@ -239,15 +237,13 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		}
 		seatsLeft.set(playUsers);
 		
-    	if( msg.equals("join_sugangBattle") && playFlag ==0) {// 배틀에 참여
-			sugangPlayerCount.incrementAndGet();
-    		if(sugangPlayerCount.get()>=1) {
-				playGameTimer();
-			}
+    	if( msg == "join_sugangBattle" && playFlag ==0) {// 배틀에 참여
+    		playGameTimer();
+    		sugangPlayerCount.incrementAndGet();
     		gameSessions.put(String.valueOf(playerName),session);
 
 
-    	}else if( msg.equals("disconnected_sugangBattle") && playFlag ==0) {// 배틀 나가기
+    	}else if( msg == "disconnected_sugangBattle" && playFlag ==0) {// 배틀 나가기
     		
     		if(sugangPlayerCount.decrementAndGet() <= 1) { // 플레이 할 사람이 없으면 카운트다운 취소
             	
@@ -259,7 +255,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     	}
     	
     	// 근데 신청버튼 여러번눌러서 여러번 날라오는건 처리 어케하지. ★
-    	if(msg.equals("register_sugangBattle")  && playFlag ==1) {// 신청버튼 누름.
+    	if(msg == "register_sugangBattle" && playFlag ==1) {// 신청버튼 누름.
     		int result = registerSugang();
     		
     		try {
@@ -285,22 +281,14 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     	}
     	else {
     		//do nothing
-    		try {
-    			// 본인 결과 알려줌
-    			String[] helloStrArr = msg.split("");
-    			int[] resultIntArr = new int[helloStrArr.length];
-    			
-    			for (int i = 0; i < helloStrArr.length; i++) {
-    			    int helloItemNum = helloStrArr[i].charAt(0);
-    			    resultIntArr[i] = helloItemNum;
-    			}
-    			
-    			session.sendMessage(new TextMessage(Arrays.toString(resultIntArr))); // 경쟁참여인원
-    			
-    		}catch(Exception e) {
-    			e.printStackTrace();
-    		}
     	}
+    	
+    	
+        
+    	
+    	
+    	
+    	
     	
     }
     
