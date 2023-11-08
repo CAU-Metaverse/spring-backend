@@ -328,6 +328,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		newUserConnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
         newUserConnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
         newUserConnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
+        newUserConnected.put("RACE_WAIT_NEW",String.valueOf(playerNumber)); //새로 접속한 인원
         
         for (WebSocketSession clientSession : sessions.values()) {
             if (clientSession.isOpen()) {
@@ -488,13 +489,19 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         for(Map.Entry item : sessions.entrySet()){
             currentPlayers += (String) item.getKey()+",";
         }
+        
+        JSONObject newUserDisconnected = new JSONObject();
+		newUserDisconnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
+		newUserDisconnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
+        newUserDisconnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
+        newUserDisconnected.put("RACE_WAIT_DEL",playerName); //새로 접속한 인원
         for (WebSocketSession clientSession : sessions.values()) {
             if (clientSession.isOpen()) {
                 try {
                     synchronized (session) {
                         clientSession.sendMessage(new TextMessage("currentPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
-                        clientSession.sendMessage(new TextMessage("currentPlayerCount,"+playerCount.get()));
-                        clientSession.sendMessage(new TextMessage(message));
+                                                
+                        clientSession.sendMessage(new TextMessage(newUserDisconnected.toJSONString()));
                     }
                 } catch (IOException e) {
                     throw new RuntimeException(e);
