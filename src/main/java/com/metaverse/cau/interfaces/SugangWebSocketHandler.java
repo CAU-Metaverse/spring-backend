@@ -69,9 +69,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		String data = gameResult.toJSONString();
         	JSONParser parser = new JSONParser();
 			JSONObject crownParse = (JSONObject)parser.parse(data);
-			String crown = (String)crownParse.get("0");
+			JSONArray crownArr = (JSONArray)crownParse.get("0");
+			JSONObject crownPeel = (JSONObject)crownArr.get(0);
+			String crown = (String)crownPeel.get("UID");
 			MyWebSocketHandler.setCrown(crown);
-		} catch (ParseException e) {
+			
+		} catch (Exception e) {
 			// 
 			e.printStackTrace();
 			
@@ -85,9 +88,9 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			
     		WebSocketSession toSendSession = sessions.get(key);
     		try {
-    	
-    			toSendSession.sendMessage(new TextMessage("raceresult:"+gameResult.toJSONString()));
-    				
+    			synchronized(toSendSession) {
+    				toSendSession.sendMessage(new TextMessage("raceresult:"+gameResult.toJSONString()));
+    			}
     		}catch(Exception e) {
     			e.printStackTrace();
     		}
@@ -121,9 +124,9 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			    			raceRound.put("RACE_NEXT_TIME_LEFT",secToPlay);			    				
 			    				//toSendSession.sendMessage(new TextMessage("Battle:Next:timeLeft:"+secToPlay)); // 테스트용
 			    			
-			    			
-			    			toSendSession.sendMessage(new TextMessage(raceRound.toJSONString()));
-			    				
+			    			synchronized(toSendSession) {
+			    				toSendSession.sendMessage(new TextMessage(raceRound.toJSONString()));
+			    			}
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
 			    		}
@@ -164,9 +167,9 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			    			raceRound.put("RACE_CURRENT_TIME_LEFT",secToPlay);
 			    				//toSendSession.sendMessage(new TextMessage("Battle:This:timeLeft:"+secToPlay));// 테스트용
 			    			
-			    			
-			    			toSendSession.sendMessage(new TextMessage(raceRound.toJSONString()));
-			    				
+			    			synchronized(toSendSession) {
+			    				toSendSession.sendMessage(new TextMessage(raceRound.toJSONString()));
+			    			}
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
 			    		}
@@ -214,9 +217,9 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 //			    			toSendSession.sendMessage(new TextMessage("Battle:timeLeft:"+secToPlay)); // 시작남은시간
 //			    			toSendSession.sendMessage(new TextMessage("Battle:Users:"+sugangPlayerCount.toString())); // 경쟁참여인원
 //			    			toSendSession.sendMessage(new TextMessage("Battle:Seats:"+seatsLeft.toString())); // 수강가능인원
-			    			
-			    			toSendSession.sendMessage(new TextMessage(currentRaceWait.toJSONString()));
-			    			
+			    			synchronized(toSendSession) {
+			    				toSendSession.sendMessage(new TextMessage(currentRaceWait.toJSONString()));
+			    			}
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
 			    		}
@@ -376,12 +379,13 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			for(String key : sessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
 	    		WebSocketSession toSendSession = sessions.get(key);
 	    		try {
-	    			toSendSession.sendMessage(new TextMessage("sugangPlayerCount:"+sugangPlayerCount.get()));
-	    			toSendSession.sendMessage(new TextMessage("sugangPlayerCount/2:"+sugangPlayerCount.get()/2));
-	    			toSendSession.sendMessage(new TextMessage("playusers:"+playUsers));
-	    			toSendSession.sendMessage(new TextMessage("seatsLeft:"+seatsLeft.get()));
+	    			synchronized(toSendSession) {
+//	    			toSendSession.sendMessage(new TextMessage("sugangPlayerCount:"+sugangPlayerCount.get()));
+//	    			toSendSession.sendMessage(new TextMessage("sugangPlayerCount/2:"+sugangPlayerCount.get()/2));
+//	    			toSendSession.sendMessage(new TextMessage("playusers:"+playUsers));
+//	    			toSendSession.sendMessage(new TextMessage("seatsLeft:"+seatsLeft.get()));
 	    			toSendSession.sendMessage(new TextMessage(joinRace.toJSONString()));
-	    			
+	    			}
 	    		}catch(Exception e) {
 	    			e.printStackTrace();
 	    		}
@@ -498,11 +502,11 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 
     	String uid = getPlayerName(session);
     	int myrank = gameResult.size();
-    	System.out.println("seatsLeft:"+seatsLeft.get());
-		System.out.println("myrank:"+myrank);
+    	//System.out.println("seatsLeft:"+seatsLeft.get());
+		//System.out.println("myrank:"+myrank);
     	if(seatsLeft.get() - myrank >= 1) {
-    		System.out.println("inseatsLeft:"+seatsLeft.get());
-    		System.out.println("inmyrank:"+myrank);
+    		//System.out.println("inseatsLeft:"+seatsLeft.get());
+    		//System.out.println("inmyrank:"+myrank);
         	JSONArray winnerData = new JSONArray();
         	JSONObject winnerDataField = new JSONObject();	
         	winnerDataField.put("UID",uid);
