@@ -26,16 +26,17 @@ import lombok.extern.slf4j.Slf4j;
 public class SugangWebSocketHandler extends TextWebSocketHandler{
 	
 	private static Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); // 대기실
-	private static Map<String, WebSocketSession> gameSessions = new ConcurrentHashMap<>(); // 게임방
+	private static Map<String, WebSocketSession> gameSessions = new ConcurrentHashMap<>(); // 게임방 (Go버튼)
 	
-	private static Map<String, WebSocketSession> nickname = new ConcurrentHashMap<>(); // 닉네임
-	private static Map<String, WebSocketSession> character = new ConcurrentHashMap<>(); // 캐릭터
-	private static AtomicInteger playerCount = new AtomicInteger(0);
+	private static Map<String, String> nickname = new ConcurrentHashMap<>(); // 닉네임
+	private static Map<String, String> character = new ConcurrentHashMap<>(); // 캐릭터
+	private static AtomicInteger playerCount = new AtomicInteger(0); // 레이스 접속인원 수
 	private static AtomicInteger maxCount = new AtomicInteger(0);
-	private static AtomicInteger sugangPlayerCount = new AtomicInteger(0);
+	private static AtomicInteger sugangPlayerCount = new AtomicInteger(0); //Go 버튼 누른사람수
+	
 	
 	private static JSONObject gameResult = new JSONObject(); // 이거랑
-	
+	private static Map<String, WebSocketSession> notClickedUsers = new ConcurrentHashMap<>(); // 신청버튼 안누른 유저 걸러내기
 	
 	private static int secondsToPlay;
 	private static Timer timer; // 30초 카운트를 위한 카운터
@@ -47,11 +48,40 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	
 	static void getResult() {
 		
+		//notClickedUsers
+		
+		
+    	
+    	int myrank = 1000;
+    	for (Map.Entry<String, WebSocketSession> entry : notClickedUsers.entrySet()) {
+            // 인원제하너딧지??????????????????????
+    		//실패한 유저들은 1000부터 +1해서
+    		String uid = entry.getKey();;
+        	//rank.incrementAndGet();
+        	JSONArray loserData = new JSONArray();
+        	JSONObject loserDataField = new JSONObject();	
+        	loserDataField.put("UID",uid);
+        	loserDataField.put("NICKNAME",nickname.get(uid));
+        	loserDataField.put("CHARACTER",character.get(uid));
+        	loserData.add(loserDataField);
+        	gameResult.put(myrank,loserData);
+        	myrank++;
+            
+            
+        }
+        
+        //MyWebSocketHander.			여기서 매핑
+		
+		
 		for(String key : sessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
+			
+			// 누른사람들 안누른사람들 다 뽑아야함.
+			
+			
     		WebSocketSession toSendSession = sessions.get(key);
     		try {
     	
-    			toSendSession.sendMessage(new TextMessage(gameResult.toJSONString()));
+    			toSendSession.sendMessage(new TextMessage("raceresult:"+gameResult.toJSONString()));
     				
     		}catch(Exception e) {
     			e.printStackTrace();
@@ -59,7 +89,8 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     	}
 
 		gameResult.clear();
-		
+		sugangPlayerCount.set(0);
+		notClickedUsers.clear();
 		gameSessions.clear();
 	}
 	
@@ -221,7 +252,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     			e.printStackTrace();
     		}
     	}
-		
+		notClickedUsers.putAll(gameSessions);
 		nextGameTimer(); //현재 라운드 진행중
 		//여기서 stop을 줘야함.
 		// 그럼 게임세션 클리어가 내부로 들어가야지
@@ -292,6 +323,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
                 throw new RuntimeException(e);
             }
         }
+        
+		JSONObject newUserConnected = new JSONObject();
+		newUserConnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
+        newUserConnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
+        newUserConnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
+        
         for (WebSocketSession clientSession : sessions.values()) {
             if (clientSession.isOpen()) {
                 try {
@@ -300,8 +337,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
                             clientSession.sendMessage(new TextMessage("currentSugangPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
                         }
                         // 현재 수강신청 발판 밟은인원
-                        clientSession.sendMessage(new TextMessage("currentPlayerCount,"+playerCount.get()));
-                        clientSession.sendMessage(new TextMessage(message)); // 새 유저 들어옴 알림.
+                        //clientSession.sendMessage(new TextMessage("currentPlayerCount,"+playerCount.get()));
+                        //clientSession.sendMessage(new TextMessage(message)); // 새 유저 들어옴 알림.
+                        
+                        
+                        
+                        clientSession.sendMessage(new TextMessage(newUserConnected.toJSONString()));
                         
                     }
                 } catch (IOException e) {
@@ -433,6 +474,8 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         String playerName = getPlayerName(session);
         sessions.remove(playerName);
+        nickname.remove(playerName);
+        character.remove(playerName);
         if(gameSessions.containsKey(playerName))
         	gameSessions.remove(playerName);
 
@@ -461,16 +504,25 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     }
 
     synchronized private void clickSugangBtn(WebSocketSession session) {
+    	
+    	
+    	// 여기서 인원수 나눠서 처리해야하미
+    	
     	String uid = getPlayerName(session);
     	int myrank = gameResult.size();
-    	//rank.incrementAndGet();
-    	JSONArray winnerData = new JSONArray();
-    	JSONObject winnerDataField = new JSONObject();
-    	winnerDataField.put("UID",uid);
-    	winnerDataField.put("NICKNAME",nickname.get(uid));
-    	winnerDataField.put("CHARACTER",character.get(uid));
-    	winnerData.add(winnerDataField);
-    	gameResult.put(myrank,winnerData);
+    	
+    	if(seatsLeft.get() - myrank > 1) {
+        	JSONArray winnerData = new JSONArray();
+        	JSONObject winnerDataField = new JSONObject();	
+        	winnerDataField.put("UID",uid);
+        	winnerDataField.put("NICKNAME",nickname.get(uid));
+        	winnerDataField.put("CHARACTER",character.get(uid));
+        	winnerData.add(winnerDataField);
+        	gameResult.put(myrank,winnerData);
+        	
+        	notClickedUsers.remove(uid);
+    	}
+
     	
     	//"0":[user1,닉네임1,캐릭터1], "1":[user2,닉네임2,캐릭터2]
     	
