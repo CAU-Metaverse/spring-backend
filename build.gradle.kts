@@ -20,9 +20,11 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.projectlombok:lombok:1.18.26")
 	implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+	implementation("com.googlecode.json-simple:json-simple:1.1.1")
 	annotationProcessor("org.projectlombok:lombok:1.18.22")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	
 }
 
 tasks.withType<Test> {
