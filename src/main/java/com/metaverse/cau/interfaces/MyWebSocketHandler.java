@@ -26,6 +26,12 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
     private static AtomicInteger playerCount = new AtomicInteger(0);
 
     private static AtomicInteger maxCount = new AtomicInteger(0);
+    
+    private static String crown = new String();
+    
+    public static void setCrown(String uid) {
+    	crown = uid;
+    }
 
     static List<Integer> findMissingElements(List<Integer> list1, List<Integer> list2) {
         List<Integer> missingElements = new ArrayList<>();
