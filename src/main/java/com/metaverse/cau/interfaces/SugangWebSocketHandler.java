@@ -47,17 +47,11 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	private static int thisRoundSeconds;
 	
 	static void getResult() {
-		
-		//notClickedUsers
-		
-		
     	
     	int myrank = 1000;
     	for (Map.Entry<String, WebSocketSession> entry : notClickedUsers.entrySet()) {
-            // 인원제하너딧지??????????????????????
     		//실패한 유저들은 1000부터 +1해서
     		String uid = entry.getKey();;
-        	//rank.incrementAndGet();
         	JSONArray loserData = new JSONArray();
         	JSONObject loserDataField = new JSONObject();	
         	loserDataField.put("UID",uid);
@@ -69,14 +63,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
             
             
         }
-        
+    	// 현재 라운드가 다 끝나면 MyWebSocketHandler로 넘겨줘야함.
         //MyWebSocketHander.			여기서 매핑
+    	
 		
 		
-		for(String key : sessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
-			
-			// 누른사람들 안누른사람들 다 뽑아야함.
-			
+		for(String key : sessions.keySet()) {
 			
     		WebSocketSession toSendSession = sessions.get(key);
     		try {
@@ -124,15 +116,11 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			    		}
 			    	}
 				}else {
-					// 다음라운드 대기가 끝나면
-					//라운드 대기
-					//이미 flag는 1
-					
-					playFlag =0; //라운드 진행중 flag를 0으로 만들기
+
+					playFlag =0; 
 					nextTimer.cancel();
 					
 				}
-				// 0 현재 라운드가 다 끝나면 MyWebSocketHandler로 넘겨줘야함.
 			}
 		};
 		nextTimer.schedule(nextTask,0,1000);
@@ -172,22 +160,17 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			    	}
 				}else {
 					nextGameTimer();
-					// 바로 next로 가면 안되고 
-					// 유저 클릭 기다리던지 아니면 거시기해야지
-					
+
 					nextTimer.cancel();
 					
 				}
-				// 0 현재 라운드가 다 끝나면 MyWebSocketHandler로 넘겨줘야함.
 			}
 		};
 		nextTimer.schedule(nextTask,0,1000);
 		
 	}
 
-	//오류발생하진않으려나
-	//동기화는 어따붙여야하능교
-	static void playGameTimer() {// 30초부터 다시 시작하는 타이머
+	static void playGameTimer() {// n초부터 다시 시작하는 타이머
 		if(timer != null) {// 타이머가 작동중이면 취소한다.
 			timer.cancel();
 			timer = null;
@@ -254,9 +237,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     	}
 		notClickedUsers.putAll(gameSessions);
 		nextGameTimer(); //현재 라운드 진행중
-		//여기서 stop을 줘야함.
-		// 그럼 게임세션 클리어가 내부로 들어가야지
-		//gameSessions.clear();
+
 	}
 	
 	static int registerSugang() {//신청버튼
@@ -360,10 +341,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     	String playerName = getPlayerName(session);
     	String msg = message.getPayload();
     	
-    	// 메세지가 참여일경우
-        //새로 접속시에 timer를 다시 30부터 count하게됨.
-    	//if( msg == "join_sugangBattle" || msg =="disconnected_sugangBattle")
-    	
+ 
     	int playUsers =0;
 		if(sugangPlayerCount.get() != 0) {
 			playUsers = sugangPlayerCount.get()/2;
@@ -422,49 +400,26 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		int result = registerSugang();
     		
     		clickSugangBtn(session);
-    		
-    		// 동기화 함수 써서 추가하는게 나을듯.
-    		
-    		//"0":[user1,닉네임1,캐릭터1], "1":[user2,닉네임2,캐릭터2]
-//    		try { // 본인 결과 알려주는 코드
-//    			//"0":[user1,닉네임1,캐릭터1], "1":[user2,닉네임2,캐릭터2]
-//    			// 본인 결과 알려줌
-//    			//session.sendMessage(new TextMessage("Battle:result:Mine:"+Integer.toString(result))); // 경쟁참여인원
-//    		}catch(Exception e) {
-//    			e.printStackTrace();
-//    		}
-    		
-//    		for(String key : gameSessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
-//	    		WebSocketSession toSendSession = gameSessions.get(key);
-//	    		try {
-//	    			//결과값이 높을수록 순위가 높음
-//	    			// Battle:result:0~n 수강신청 성공        Battle:result:{-n}~{-1}  수강신청 실패
-//	    			if(playerName != getPlayerName(toSendSession))
-//	    				toSendSession.sendMessage(new TextMessage("Battle:result:FromOthers:"+playerName+":"+Integer.toString(result))); // 경쟁참여인원
-//	    			
-//	    		}catch(Exception e) {
-//	    			e.printStackTrace();
-//	    		}
-//	    	}
+   
     		
     	}
     	else {
     		//do nothing
-    		try {
-    			// 본인 결과 알려줌
-    			String[] helloStrArr = msg.split("");
-    			int[] resultIntArr = new int[helloStrArr.length];
-    			
-    			for (int i = 0; i < helloStrArr.length; i++) {
-    			    int helloItemNum = helloStrArr[i].charAt(0);
-    			    resultIntArr[i] = helloItemNum;
-    			}
-    			
-    			session.sendMessage(new TextMessage(Arrays.toString(resultIntArr))); // 경쟁참여인원
-    			
-    		}catch(Exception e) {
-    			e.printStackTrace();
-    		}
+//    		try {
+//    			// 본인 결과 알려줌
+//    			String[] helloStrArr = msg.split("");
+//    			int[] resultIntArr = new int[helloStrArr.length];
+//    			
+//    			for (int i = 0; i < helloStrArr.length; i++) {
+//    			    int helloItemNum = helloStrArr[i].charAt(0);
+//    			    resultIntArr[i] = helloItemNum;
+//    			}
+//    			
+//    			session.sendMessage(new TextMessage(Arrays.toString(resultIntArr))); // 경쟁참여인원
+//    			
+//    		}catch(Exception e) {
+//    			e.printStackTrace();
+//    		}
     	}
     	
     }
@@ -511,10 +466,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     }
 
     synchronized private void clickSugangBtn(WebSocketSession session) {
-    	
-    	
-    	// 여기서 인원수 나눠서 처리해야하미
-    	
+
     	String uid = getPlayerName(session);
     	int myrank = gameResult.size();
     	
@@ -530,12 +482,8 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         	notClickedUsers.remove(uid);
     	}
 
-    	
     	//"0":[user1,닉네임1,캐릭터1], "1":[user2,닉네임2,캐릭터2]
-    	
-    	//rank
-    	//gameResult
-    	
+
     }
     
     private String getPlayerName(WebSocketSession session) {
@@ -547,4 +495,3 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         return null;
     }
 }
-//sendMessage 수정, 오류테스트 필요
