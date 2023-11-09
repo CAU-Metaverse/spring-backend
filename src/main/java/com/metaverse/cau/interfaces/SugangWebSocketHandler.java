@@ -29,6 +29,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	private static Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); // 대기실
 	private static Map<String, WebSocketSession> gameSessions = new ConcurrentHashMap<>(); // 게임방 (Go버튼)
 	
+	private static Map<String, String> realUID = new ConcurrentHashMap<>(); // 유니티 상의 uid
 	private static Map<String, String> nickname = new ConcurrentHashMap<>(); // 닉네임
 	private static Map<String, String> character = new ConcurrentHashMap<>(); // 캐릭터
 	private static AtomicInteger playerCount = new AtomicInteger(0); // 레이스 접속인원 수
@@ -55,7 +56,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		String uid = entry.getKey();;
         	JSONArray loserData = new JSONArray();
         	JSONObject loserDataField = new JSONObject();	
-        	loserDataField.put("UID",uid);
+        	loserDataField.put("UID",realUID.get(uid));
         	loserDataField.put("NICKNAME",nickname.get(uid));
         	loserDataField.put("CHARACTER",character.get(uid));
         	loserData.add(loserDataField);
@@ -73,7 +74,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			JSONObject crownPeel = (JSONObject)crownArr.get(0);
 			String crown = (String)crownPeel.get("UID");
 			MyWebSocketHandler.setCrown(crown);
-			
+			System.out.println("crown:"+crown);
 		} catch (Exception e) {
 			// 
 			e.printStackTrace();
@@ -361,7 +362,9 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
  
     	
 		
-    	if( msg.equals("join_sugangBattle") && playFlag ==0) {// 배틀에 참여
+    	if( msg.contains("join_sugangBattle") && playFlag ==0) {// 배틀에 참여
+    		//join_sugangBattle :userId :userCharacter :userNickname
+    		
     		sugangPlayerCount.incrementAndGet();
     		if(sugangPlayerCount.get() != 0) {
     			playUsers = sugangPlayerCount.get()/2;
@@ -370,9 +373,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		
     		if(sugangPlayerCount.get()>1)
     			playGameTimer();
-    		
+    		String[] segments = msg.split(":");
     		gameSessions.put(String.valueOf(playerName),session);
-    		 
+    		realUID.put(playerName,segments[1]);
+    		character.put(playerName,segments[2]);
+    		nickname.put(playerName,segments[3]);
+    		
     		JSONObject joinRace = new JSONObject();
 			joinRace.put("RACE_WAIT_USER_ADD",playerName);
 			
@@ -463,8 +469,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         String playerName = getPlayerName(session);
         sessions.remove(playerName);
-        nickname.remove(playerName);
-        character.remove(playerName);
+        if(nickname.containsKey(playerName))
+        	nickname.remove(playerName);
+        if(character.containsKey(playerName))
+        	character.remove(playerName);
         if(gameSessions.containsKey(playerName))
         	gameSessions.remove(playerName);
 
@@ -509,7 +517,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		//System.out.println("inmyrank:"+myrank);
         	JSONArray winnerData = new JSONArray();
         	JSONObject winnerDataField = new JSONObject();	
-        	winnerDataField.put("UID",uid);
+        	winnerDataField.put("UID",realUID.get(uid));
         	winnerDataField.put("NICKNAME",nickname.get(uid));
         	winnerDataField.put("CHARACTER",character.get(uid));
         	winnerData.add(winnerDataField);
