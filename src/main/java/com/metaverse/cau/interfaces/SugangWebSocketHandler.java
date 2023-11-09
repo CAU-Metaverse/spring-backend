@@ -49,8 +49,8 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	private static int thisRoundSeconds;
 	
 	static void getResult() {
-    	
-    	int myrank = 1000;
+		int myrank = gameResult.size()+1;
+    	//int myrank = 1000;
     	for (Map.Entry<String, WebSocketSession> entry : notClickedUsers.entrySet()) {
     		//실패한 유저들은 1000부터 +1해서
     		String uid = entry.getKey();;
@@ -70,7 +70,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		String data = gameResult.toJSONString();
         	JSONParser parser = new JSONParser();
 			JSONObject crownParse = (JSONObject)parser.parse(data);
-			JSONArray crownArr = (JSONArray)crownParse.get("0");
+			JSONArray crownArr = (JSONArray)crownParse.get("1");
 			JSONObject crownPeel = (JSONObject)crownArr.get(0);
 			String crown = (String)crownPeel.get("UID");
 			MyWebSocketHandler.setCrown(crown);
@@ -509,10 +509,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     synchronized private void clickSugangBtn(WebSocketSession session) {
 
     	String uid = getPlayerName(session);
-    	int myrank = gameResult.size();
+    	int myrank = gameResult.size()+1;
     	//System.out.println("seatsLeft:"+seatsLeft.get());
 		//System.out.println("myrank:"+myrank);
-    	if(seatsLeft.get() - myrank >= 1) {
+    	//if(seatsLeft.get() - myrank >= 1) {
     		//System.out.println("inseatsLeft:"+seatsLeft.get());
     		//System.out.println("inmyrank:"+myrank);
         	JSONArray winnerData = new JSONArray();
@@ -524,7 +524,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         	gameResult.put(myrank,winnerData);
         	
         	notClickedUsers.remove(uid);
-    	}
+    	//}
 
     	//"0":[user1,닉네임1,캐릭터1], "1":[user2,닉네임2,캐릭터2]
 
