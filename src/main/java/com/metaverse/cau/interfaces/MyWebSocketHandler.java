@@ -1,6 +1,7 @@
 package com.metaverse.cau.interfaces;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.metaverse.cau.dto.ChatInfo;
 import com.metaverse.cau.dto.UserInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -117,7 +118,30 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         ByteBuffer receivedMessage = message.getPayload();
         Charset charset = Charset.forName("UTF-8"); // 사용할 문자 인코딩
         String decodedString = charset.decode(receivedMessage).toString();
-        if(decodedString.startsWith("nickname")){
+        if(decodedString.startsWith("chat")){
+            String[] parts = decodedString.split(",");
+            String chat = parts[1];
+            String nickname = parts[3];
+            //Map<String, ChatInfo> chatInfoMap = new HashMap<>();
+            ChatInfo chatInfo = new ChatInfo(nickname,chat);
+            //chatInfoMap.put(playerName, chatInfo);
+            // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
+            for (WebSocketSession clientSession : sessions.values()) {
+                if (clientSession.isOpen()) {
+                    try {
+                        synchronized (session) {
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            String jsonResponse = objectMapper.writeValueAsString(chatInfo);
+                            log.info("jsonResponse : " + jsonResponse);
+                            clientSession.sendMessage(new TextMessage("chatInfo+"+jsonResponse));
+                        }
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+        else if(decodedString.startsWith("nickname")){
             String[] parts = decodedString.split(",");
            // String responseMessage = "userInfo," + playerName+","+"nickname,"+parts[1]+",avatar,"+parts[3];
             UserInfo userInfo = userInfoSessions.get(playerName);
