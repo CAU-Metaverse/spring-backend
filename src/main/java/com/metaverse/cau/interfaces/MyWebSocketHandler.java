@@ -3,6 +3,8 @@ package com.metaverse.cau.interfaces;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.metaverse.cau.dto.ChatInfo;
 import com.metaverse.cau.dto.UserInfo;
+import com.metaverse.cau.service.JsonUtility;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.BinaryMessage;
@@ -20,8 +22,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class MyWebSocketHandler extends TextWebSocketHandler {
 
+    private final JsonUtility jsonUtility;
     private static Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private static Map<String, UserInfo> userInfoSessions = new ConcurrentHashMap<>();
     private static AtomicInteger playerCount = new AtomicInteger(0);
@@ -118,13 +122,15 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         ByteBuffer receivedMessage = message.getPayload();
         Charset charset = Charset.forName("UTF-8"); // 사용할 문자 인코딩
         String decodedString = charset.decode(receivedMessage).toString();
-        if(decodedString.startsWith("chat")){
-            String[] parts = decodedString.split(",");
-            String chat = parts[1];
-            String nickname = parts[3];
-            //Map<String, ChatInfo> chatInfoMap = new HashMap<>();
-            ChatInfo chatInfo = new ChatInfo(nickname,chat);
-            //chatInfoMap.put(playerName, chatInfo);
+        HashMap<String, Object> decodedMap = jsonUtility.jsonToMap(decodedString);
+        String action = (String)decodedMap.get("action");
+        if(action==null){
+            throw new RuntimeException("action이 없음");
+        }
+        if(action.equals("CHAT")){
+            String chat = (String) decodedMap.get("chat");
+            UserInfo userInfo = userInfoSessions.get(playerName);
+            ChatInfo chatInfo = new ChatInfo(userInfo.getHexColor(),userInfo.getNickname(),chat);
             // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
             for (WebSocketSession clientSession : sessions.values()) {
                 if (clientSession.isOpen()) {
@@ -141,12 +147,12 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
                 }
             }
         }
-        else if(decodedString.startsWith("nickname")){
-            String[] parts = decodedString.split(",");
-           // String responseMessage = "userInfo," + playerName+","+"nickname,"+parts[1]+",avatar,"+parts[3];
+        else if(action.equals("USER_INFO")){
+            String nickname = (String) decodedMap.get("nickname");
+            String avatar = (String) decodedMap.get("avatar");
             UserInfo userInfo = userInfoSessions.get(playerName);
-            userInfo.setNickname(parts[1]);
-            userInfo.setAvatar(parts[3]);
+            userInfo.setNickname(nickname);
+            userInfo.setAvatar(avatar);
 
             // Map을 List<Map>으로 변환
             List<Map<String, UserInfo>> jsonSessionArray = new ArrayList<>();
@@ -171,8 +177,8 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
                     }
                 }
             }
-        }else{
-            String responseMessage = "player," + playerName + "," + decodedString;
+        }else if(action.equals("POSITION")){
+            String responseMessage = "player," + playerName + "," + decodedMap.get("position");
             byte[] byteArray = responseMessage.getBytes(charset);
             // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
             for (WebSocketSession clientSession : sessions.values()) {
