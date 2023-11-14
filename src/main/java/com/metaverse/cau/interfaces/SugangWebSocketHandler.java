@@ -19,12 +19,22 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import com.metaverse.cau.dto.SubjectInfo;
+
 import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
 @Component
 public class SugangWebSocketHandler extends TextWebSocketHandler{
+	// 과목명, 학점, 여석, 채워진 자릿수
+	static SubjectInfo musical = new SubjectInfo("연극과 뮤지컬",3,2,0);
+	static SubjectInfo globalHanja = new SubjectInfo("글로벌 한자",3,1,0);
+	static SubjectInfo ACT = new SubjectInfo("ACT",2,1,0);
+	static SubjectInfo history = new SubjectInfo("한국사",2,3,0);
+	static SubjectInfo medicine = new SubjectInfo("의약의 역사",3,2,0);
+	static SubjectInfo accounting = new SubjectInfo("앙트레프레너십시대의 회계",2,1,0);
+	
 	
 	private static Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>(); // 대기실
 	private static Map<String, WebSocketSession> gameSessions = new ConcurrentHashMap<>(); // 게임방 (Go버튼)
@@ -32,57 +42,82 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	private static Map<String, String> realUID = new ConcurrentHashMap<>(); // 유니티 상의 uid
 	private static Map<String, String> nickname = new ConcurrentHashMap<>(); // 닉네임
 	private static Map<String, String> character = new ConcurrentHashMap<>(); // 캐릭터
+	private static Map<String, AtomicInteger> gameCredit = new ConcurrentHashMap<>();
 	private static AtomicInteger playerCount = new AtomicInteger(0); // 레이스 접속인원 수
 	private static AtomicInteger maxCount = new AtomicInteger(0);
 	private static AtomicInteger sugangPlayerCount = new AtomicInteger(0); //Go 버튼 누른사람수
 	
 	
-	private static JSONObject gameResult = new JSONObject(); // 이거랑
-	private static Map<String, WebSocketSession> notClickedUsers = new ConcurrentHashMap<>(); // 신청버튼 안누른 유저 걸러내기
+	
 	
 	private static int secondsToPlay;
 	private static Timer timer; // 30초 카운트를 위한 카운터
 	private static TimerTask task;
-	private static AtomicInteger seatsLeft = new AtomicInteger(0); //남은좌석
 	private static int playFlag =0; //0:게임대기중   1:게임중
 	private static int nextRoundSeconds;
 	private static int thisRoundSeconds;
 	
-	static void getResult() {
-		int myrank = gameResult.size()+1;
-    	//int myrank = 1000;
-    	for (Map.Entry<String, WebSocketSession> entry : notClickedUsers.entrySet()) {
-    		//실패한 유저들은 1000부터 +1해서
-    		String uid = entry.getKey();;
-        	JSONArray loserData = new JSONArray();
-        	JSONObject loserDataField = new JSONObject();	
-        	loserDataField.put("UID",realUID.get(uid));
-        	loserDataField.put("NICKNAME",nickname.get(uid));
-        	loserDataField.put("CHARACTER",character.get(uid));
-        	loserData.add(loserDataField);
-        	gameResult.put(myrank,loserData);
-        	myrank++;
-            
-            
+
+    private static String findMaxKey(Map<String, AtomicInteger> map) {
+        String maxKey = null;
+        int maxValue = Integer.MIN_VALUE;
+
+        for (Map.Entry<String, AtomicInteger> entry : map.entrySet()) {
+            String key = entry.getKey();
+            int value = entry.getValue().get();
+
+            if (value > maxValue) {
+                maxValue = value;
+                maxKey = key;
+            }
         }
-    	
-    	try {
-    		String data = gameResult.toJSONString();
-        	JSONParser parser = new JSONParser();
-			JSONObject crownParse = (JSONObject)parser.parse(data);
-			JSONArray crownArr = (JSONArray)crownParse.get("1");
-			JSONObject crownPeel = (JSONObject)crownArr.get(0);
-			String crown = (String)crownPeel.get("UID");
-			MyWebSocketHandler.setCrown(crown);
-			System.out.println("crown:"+crown);
-		} catch (Exception e) {
-			// 
-			e.printStackTrace();
+
+        return maxKey;
+    }
+	static void gameset() {
+		realUID.clear();
+		nickname.clear();
+		character.clear();
+		gameCredit.clear();
+		sugangPlayerCount.set(0);
+		
+		gameSessions.clear();
+		
+		
+		musical = new SubjectInfo("연극과 뮤지컬",3,2,0);
+		globalHanja = new SubjectInfo("글로벌 한자",3,1,0);
+		ACT = new SubjectInfo("ACT",2,1,0);
+		history = new SubjectInfo("한국사",2,3,0);
+		medicine = new SubjectInfo("의약의 역사",3,2,0);
+		accounting = new SubjectInfo("앙트레프레너십시대의 회계",2,1,0);
+	}
+	static void getResult() {
+		// CREDIT 높은순으로 정렬해야함.
+		JSONObject action_RACERESULT = new JSONObject();
+		action_RACERESULT.put("action","RACE_RESULT");
+		JSONArray dataArr = new JSONArray();
+		
+		
+		while(true) {
+			String key = findMaxKey(gameCredit);
+			System.out.println("key"+key);
+			if(key == null)
+				break;
+			
+			try {
+				JSONObject dataField = new JSONObject();
+				dataField.put("USER",realUID.get(key));
+				dataField.put("CHARACTER",character.get(key));
+				dataField.put("CREDIT",gameCredit.get(key).get());
+    			dataArr.add(dataField);
+    		}catch(Exception e) {
+    			e.printStackTrace();
+    		}
+			gameCredit.remove(key);
 			
 		}
-    	// 현재 라운드가 다 끝나면 MyWebSocketHandler로 넘겨줘야함.
-        
-    	
+		action_RACERESULT.put("data",dataArr);
+		
 		
 		
 		for(String key : sessions.keySet()) {
@@ -90,22 +125,20 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     		WebSocketSession toSendSession = sessions.get(key);
     		try {
     			synchronized(toSendSession) {
-    				toSendSession.sendMessage(new TextMessage("raceresult:"+gameResult.toJSONString()));
+    				toSendSession.sendMessage(new TextMessage(action_RACERESULT.toJSONString()));
     			}
     		}catch(Exception e) {
     			e.printStackTrace();
     		}
     	}
 
-		gameResult.clear();
-		sugangPlayerCount.set(0);
-		notClickedUsers.clear();
-		gameSessions.clear();
+		gameset();
 	}
 	
 	static void nextGameTimer() { 
 		Timer nextTimer = new Timer();
 		nextRoundSeconds = 15; //
+		System.out.println("nextgametime");
 		getResult();
 		
 		
@@ -116,17 +149,23 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 					nextRoundSeconds--;
 					String secToPlay = Integer.toString(nextRoundSeconds);
 					
+					JSONObject action_nextRoundTimer = new JSONObject();
+					action_nextRoundTimer.put("action","TIMER_COUNT");
+					
+					secondsToPlay--;
+					JSONObject data_nextRoundTimer = new JSONObject();
+					data_nextRoundTimer.put("RACE_NEXT_TIME_LEFT",secToPlay);
+					
+					action_nextRoundTimer.put("data",data_nextRoundTimer);
 					
 					for(String key : sessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
 			    		WebSocketSession toSendSession = sessions.get(key);
 			    		try {
-			    			JSONObject raceRound = new JSONObject();
+			    			
 			    			//다음 라운드 대기중 : 결과창 볼수있는 시간.
-			    			raceRound.put("RACE_NEXT_TIME_LEFT",secToPlay);			    				
-			    				//toSendSession.sendMessage(new TextMessage("Battle:Next:timeLeft:"+secToPlay)); // 테스트용
 			    			
 			    			synchronized(toSendSession) {
-			    				toSendSession.sendMessage(new TextMessage(raceRound.toJSONString()));
+			    				toSendSession.sendMessage(new TextMessage(action_nextRoundTimer.toJSONString()));
 			    			}
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
@@ -147,7 +186,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	
 	static void thisGameTimer() { //flag =1 : 현 라운드 끝. 다음 라운드 대기중 // flag =0 : 현재 라운드 진행중
 		Timer nextTimer = new Timer();
-		thisRoundSeconds = 15; //
+		thisRoundSeconds = 10; //
 		
 		
 		TimerTask nextTask = new TimerTask() {
@@ -157,19 +196,22 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 					thisRoundSeconds--;
 					String secToPlay = Integer.toString(thisRoundSeconds);
 					
+					JSONObject action_thisRoundTimer = new JSONObject();
+					action_thisRoundTimer.put("action","TIMER_COUNT");
+					
+					secondsToPlay--;
+					JSONObject data_thisRoundTimer = new JSONObject();
+					data_thisRoundTimer.put("RACE_CURRENT_TIME_LEFT",secToPlay);
+					
+					action_thisRoundTimer.put("data",data_thisRoundTimer);
 					
 					for(String key : sessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
 			    		WebSocketSession toSendSession = sessions.get(key);
 			    		try {
-			    			JSONObject raceRound = new JSONObject();
-
 			    			// 현재 라운드 남은시간 : 신청버튼 누를 수 있는 시간
 			    			
-			    			raceRound.put("RACE_CURRENT_TIME_LEFT",secToPlay);
-			    				//toSendSession.sendMessage(new TextMessage("Battle:This:timeLeft:"+secToPlay));// 테스트용
-			    			
 			    			synchronized(toSendSession) {
-			    				toSendSession.sendMessage(new TextMessage(raceRound.toJSONString()));
+			    				toSendSession.sendMessage(new TextMessage(action_thisRoundTimer.toJSONString()));
 			    			}
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
@@ -195,20 +237,27 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		}
 		task = null;
 		timer = new Timer();
-		secondsToPlay = 15;
+		secondsToPlay = 5;
 		
 		
 		task = new TimerTask() {
 			@Override
 			public void run() {
 				if(secondsToPlay > 0) {
+					
+					JSONObject action_timerCountTillStart = new JSONObject();
+					action_timerCountTillStart.put("action","TIMER_COUNT");
+					
 					secondsToPlay--;
 					String secToPlay = Integer.toString(secondsToPlay);
-					JSONObject currentRaceWait = new JSONObject();
-					currentRaceWait.put("RACE_WAIT_TIME_LEFT",secToPlay);
-					currentRaceWait.put("RACE_WAIT_USERS_NUM",sugangPlayerCount.toString());
-					currentRaceWait.put("RACE_WAIT_SEATS_LEFT",seatsLeft.toString());
-					currentRaceWait.put("RACE_WAIT_STATE_MESSAGE","RE-COUNTING_30_SECS");
+					JSONObject data_timerCountTillstart = new JSONObject();
+					data_timerCountTillstart.put("RACE_WAIT_TIME_LEFT",secToPlay);
+					
+					action_timerCountTillStart.put("data",data_timerCountTillstart);
+					
+					//currentRaceWait.put("RACE_WAIT_USERS_NUM",sugangPlayerCount.toString());
+					//currentRaceWait.put("RACE_WAIT_SEATS_LEFT",seatsLeft.toString());
+					//currentRaceWait.put("RACE_WAIT_STATE_MESSAGE","RE-COUNTING_30_SECS");
 					
 					for(String key : sessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
 			    		WebSocketSession toSendSession = sessions.get(key);
@@ -219,7 +268,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 //			    			toSendSession.sendMessage(new TextMessage("Battle:Users:"+sugangPlayerCount.toString())); // 경쟁참여인원
 //			    			toSendSession.sendMessage(new TextMessage("Battle:Seats:"+seatsLeft.toString())); // 수강가능인원
 			    			synchronized(toSendSession) {
-			    				toSendSession.sendMessage(new TextMessage(currentRaceWait.toJSONString()));
+			    				toSendSession.sendMessage(new TextMessage(action_timerCountTillStart.toJSONString()));
 			    			}
 			    		}catch(Exception e) {
 			    			e.printStackTrace();
@@ -239,9 +288,17 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	}
 	
 	static void playSugangBattle() {//타이머 종료. 시작.							2
-		JSONObject raceRound = new JSONObject();
-		raceRound.put("RACE_CURRENT_STATE","START");
-		String btnEnable = raceRound.toJSONString();
+		JSONObject action_raceStateStart = new JSONObject();
+		action_raceStateStart.put("action","RACE_STATE");
+		
+		secondsToPlay--;
+		JSONObject data_raceStateStart = new JSONObject();
+		data_raceStateStart.put("RACE_CURRENT_STATE","START");
+		
+		action_raceStateStart.put("data",data_raceStateStart);
+		
+		
+		String btnEnable = action_raceStateStart.toJSONString();
 		for(String key : gameSessions.keySet()) { //참여중인 인원과 비참여 인원 모두에게 인원을 알림
     		WebSocketSession toSendSession = gameSessions.get(key);
     		try {
@@ -253,22 +310,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     			e.printStackTrace();
     		}
     	}
-		notClickedUsers.putAll(gameSessions);
+		
 		thisGameTimer(); //현재 라운드 진행중
 
 	}
 	
-	static int registerSugang() {//신청버튼
-		int result = seatsLeft.decrementAndGet();
-		if(result >=0) { //1자리 남았을때 result는 0이니까 true. 
-			
-			return result;
-		}
-		
-		return result;
-		
-		
-	}
+	
 	
     static List<Integer> findMissingElements(List<Integer> list1, List<Integer> list2) {
         List<Integer> missingElements = new ArrayList<>();
@@ -324,11 +371,11 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         }
         
 		JSONObject newUserConnected = new JSONObject();
-		newUserConnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
-        newUserConnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
-        newUserConnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
-        newUserConnected.put("RACE_WAIT_NEW",String.valueOf(playerNumber)); //새로 접속한 인원
-        
+		newUserConnected.put("action","PLAYER_COUNT");
+		JSONObject newUserData = new JSONObject();
+		newUserData.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
+		newUserConnected.put("data",newUserData);
+		
         for (WebSocketSession clientSession : sessions.values()) {
             if (clientSession.isOpen()) {
                 try {
@@ -359,25 +406,44 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
     	String playerName = getPlayerName(session);
     	String msg = message.getPayload();
     	int playUsers =0;
- 
+    	
+    	JSONParser parser = new JSONParser();
+    	String action = new String();
+    	JSONObject parseObj = new JSONObject();
+    	try {
+			parseObj = (JSONObject)parser.parse(msg);
+			action = (String)parseObj.get("action");
+		} catch (ParseException e) {
+			
+			e.printStackTrace();
+		}
     	
 		
-    	if( msg.contains("join_sugangBattle") && playFlag ==0) {// 배틀에 참여
+    	//if( msg.contains("join_sugangBattle") && playFlag ==0) {// 배틀에 참여
     		//join_sugangBattle :userId :userCharacter :userNickname
-    		
+    	if(action.equals("USER") && playFlag ==0) {
     		sugangPlayerCount.incrementAndGet();
     		if(sugangPlayerCount.get() != 0) {
     			playUsers = sugangPlayerCount.get()/2;
     		}
-    		seatsLeft.set(playUsers);
+    		
     		
     		if(sugangPlayerCount.get()>1)
     			playGameTimer();
-    		String[] segments = msg.split(":");
+    		
+    		
+    		JSONObject data = (JSONObject)parseObj.get("data");
+    		
+    		String UID = data.get("ID").toString();
+    		String CHARACTER = (String)data.get("CHARACTER");
+    		String NICKNAME = (String)data.get("NICKNAME");
+    		 
+    		
     		gameSessions.put(String.valueOf(playerName),session);
-    		realUID.put(playerName,segments[1]);
-    		character.put(playerName,segments[2]);
-    		nickname.put(playerName,segments[3]);
+    		realUID.put(playerName,UID);
+    		character.put(playerName,CHARACTER);
+    		nickname.put(playerName,NICKNAME);
+    		gameCredit.put(playerName,new AtomicInteger(0));
     		
     		JSONObject joinRace = new JSONObject();
 			joinRace.put("RACE_WAIT_USER_ADD",playerName);
@@ -386,11 +452,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	    		WebSocketSession toSendSession = sessions.get(key);
 	    		try {
 	    			synchronized(toSendSession) {
-//	    			toSendSession.sendMessage(new TextMessage("sugangPlayerCount:"+sugangPlayerCount.get()));
-//	    			toSendSession.sendMessage(new TextMessage("sugangPlayerCount/2:"+sugangPlayerCount.get()/2));
-//	    			toSendSession.sendMessage(new TextMessage("playusers:"+playUsers));
-//	    			toSendSession.sendMessage(new TextMessage("seatsLeft:"+seatsLeft.get()));
-	    			toSendSession.sendMessage(new TextMessage(joinRace.toJSONString()));
+	    			toSendSession.sendMessage(new TextMessage("test: "+joinRace.toJSONString()));
 	    			}
 	    		}catch(Exception e) {
 	    			e.printStackTrace();
@@ -398,47 +460,52 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 	    	}
     		
 
-
-    	}else if( msg.equals("disconnected_sugangBattle") && playFlag ==0) {// 배틀 나가기
-    		
-    		
-    		if(sugangPlayerCount.decrementAndGet() <= 1) { // 플레이 할 사람이 없으면 카운트다운 취소
-    			try {
-    				if(sugangPlayerCount.get() != 0) {
-    	    			playUsers = sugangPlayerCount.get()/2;
-    	    		}
-    	    		seatsLeft.set(playUsers);
-    	    		
-    				timer.cancel();
-                	timer = null;	
-	    		}catch(Exception e) {
-	    			e.printStackTrace();
-	    		}
-            	
-            }
-    		gameSessions.remove(playerName);
-    		
-    		JSONObject leftRace = new JSONObject();
-    		leftRace.put("RACE_WAIT_USER_DEL",playerName);
-			
-			for(String key : sessions.keySet()) { 
-	    		WebSocketSession toSendSession = sessions.get(key);
-	    		try {
-	    			
-	    			toSendSession.sendMessage(new TextMessage(leftRace.toJSONString()));
-	    			
-	    		}catch(Exception e) {
-	    			e.printStackTrace();
-	    		}
-	    	}
-    		
-    	}
+    	}	// Go! 취소버튼 :  안쓸듯..
+//    	else if( msg.equals("disconnected_sugangBattle") && playFlag ==0) {// 배틀 나가기
+//    		
+//    		
+//    		if(sugangPlayerCount.decrementAndGet() <= 1) { // 플레이 할 사람이 없으면 카운트다운 취소
+//    			try {
+//    				if(sugangPlayerCount.get() != 0) {
+//    	    			playUsers = sugangPlayerCount.get()/2;
+//    	    		}
+//    	    		seatsLeft.set(playUsers);
+//    	    		
+//    				timer.cancel();
+//                	timer = null;	
+//	    		}catch(Exception e) {
+//	    			e.printStackTrace();
+//	    		}
+//            	
+//            }
+//    		gameSessions.remove(playerName);
+//    		
+//    		JSONObject leftRace = new JSONObject();
+//    		leftRace.put("RACE_WAIT_USER_DEL",playerName);
+//			
+//			for(String key : sessions.keySet()) { 
+//	    		WebSocketSession toSendSession = sessions.get(key);
+//	    		try {
+//	    			
+//	    			toSendSession.sendMessage(new TextMessage(leftRace.toJSONString()));
+//	    			
+//	    		}catch(Exception e) {
+//	    			e.printStackTrace();
+//	    		}
+//	    	}
+//    		
+//    	}
     	
-    	// 근데 신청버튼 여러번눌러서 여러번 날라오는건 처리 어케하지. ★
-    	if(msg.equals("register_sugangBattle")  && playFlag ==1) {// 신청버튼 누름.
-    		//int result = registerSugang();
+    	// 신청버튼
+    	if(action.equals("APPLY")  && playFlag ==1) {// 신청버튼 누름.
     		
-    		clickSugangBtn(session);
+    		JSONObject data = (JSONObject)parseObj.get("data");
+    		//String UID = data.get("USER_ID").toString();
+    		String SUBJECT = (String)data.get("SUBJECT");
+    		
+    		
+    		//clickSugangBtn(session,UID, SUBJECT);
+    		clickSugangBtn(session, SUBJECT);
    
     		
     	}
@@ -475,7 +542,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         	character.remove(playerName);
         if(gameSessions.containsKey(playerName))
         	gameSessions.remove(playerName);
-
+        if(realUID.containsKey(playerName))
+        	realUID.remove(playerName);
+        if(gameCredit.containsKey(playerName))
+        	gameCredit.remove(playerName);
         
         playerCount.decrementAndGet();
         System.out.println(playerName + " disconnected.");
@@ -486,48 +556,103 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
             currentPlayers += (String) item.getKey()+",";
         }
         
-        JSONObject newUserDisconnected = new JSONObject();
-		newUserDisconnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
-		newUserDisconnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
-        newUserDisconnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
-        newUserDisconnected.put("RACE_WAIT_DEL",playerName); //새로 접속한 인원
-        for (WebSocketSession clientSession : sessions.values()) {
-            if (clientSession.isOpen()) {
-                try {
-                    synchronized (session) {
-                        clientSession.sendMessage(new TextMessage("currentPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
-                                                
-                        clientSession.sendMessage(new TextMessage(newUserDisconnected.toJSONString()));
-                    }
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
+//        JSONObject newUserDisconnected = new JSONObject();
+//		newUserDisconnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
+//		newUserDisconnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
+//        newUserDisconnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
+//        newUserDisconnected.put("RACE_WAIT_DEL",playerName); //새로 접속한 인원
+//        for (WebSocketSession clientSession : sessions.values()) {
+//            if (clientSession.isOpen()) {
+//                try {
+//                    synchronized (session) {
+//                        clientSession.sendMessage(new TextMessage("currentPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
+//                                                
+//                        clientSession.sendMessage(new TextMessage(newUserDisconnected.toJSONString()));
+//                    }
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//        }
     }
 
-    synchronized private void clickSugangBtn(WebSocketSession session) {
-
+    private void applyResult(WebSocketSession session, SubjectInfo subject, boolean result) {
     	String uid = getPlayerName(session);
-    	int myrank = gameResult.size()+1;
-    	//System.out.println("seatsLeft:"+seatsLeft.get());
-		//System.out.println("myrank:"+myrank);
-    	//if(seatsLeft.get() - myrank >= 1) {
-    		//System.out.println("inseatsLeft:"+seatsLeft.get());
-    		//System.out.println("inmyrank:"+myrank);
-        	JSONArray winnerData = new JSONArray();
-        	JSONObject winnerDataField = new JSONObject();	
-        	winnerDataField.put("UID",realUID.get(uid));
-        	winnerDataField.put("NICKNAME",nickname.get(uid));
-        	winnerDataField.put("CHARACTER",character.get(uid));
-        	winnerData.add(winnerDataField);
-        	gameResult.put(myrank,winnerData);
-        	
-        	notClickedUsers.remove(uid);
-    	//}
+    	int leftSeats = subject.getLeftSeats();
+    	
+    	JSONObject action_APPLYBACK = new JSONObject();
+    	action_APPLYBACK.put("action","APPLY");
+		JSONObject dataField = new JSONObject();
+		dataField.put("USER_ID",realUID.get(uid));
+		dataField.put("SUBJECT",subject.getSubjectName());
+		dataField.put("USER",nickname.get(uid));
+		if(result) {
+			dataField.put("RESULT","SUCCESS");
+			AtomicInteger score = gameCredit.get(uid);
+			System.out.println(score.incrementAndGet());
+			
+		}
+			
+		else {
+			AtomicInteger score = gameCredit.get(uid);
+			System.out.println(score.get());
+			dataField.put("RESULT","FAIL");
+			
+		}
+			
+		dataField.put("SEATS_LEFT",String.valueOf(leftSeats));
+		action_APPLYBACK.put("data",dataField);
+		try {
+          synchronized (session) {
+              session.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
+          }
+      } catch (IOException e) {
+          throw new RuntimeException(e);
+      }
+		
+		/*
+		 * { "action": "APPLY",
+		 *   "data": { 
+		 *  	"USER_ID": 3,
+		 *  	"SUBJECT": "디비설",
+		 * 		"USER":"흑석동 물주먹",
+		 * 		"RESULT":"SUCCESS",
+		 * 		"SEATS_LEFT":1 } 
+		 * }
+		 * 
+		 */
+		//data_APPLYBACK.put("RACE_NEXT_TIME_LEFT",secToPlay);
+		
+		//action_nextRoundTimer.put("data",data_nextRoundTimer);
+		
+    }
+    
+    synchronized private void clickSugangBtn(WebSocketSession session, String subject) {
 
-    	//"0":[user1,닉네임1,캐릭터1], "1":[user2,닉네임2,캐릭터2]
+    	switch(subject) {
+    	case "연극과 뮤지컬":
+    		applyResult(session, musical, musical.enroll());
+    		break;
+    	case "글로벌 한자":
+    		applyResult(session, globalHanja, globalHanja.enroll());
+    		break;
+    	case "ACT" :
+    		applyResult(session, ACT, ACT.enroll());
+    		break;
+    	case "한국사" :
+    		applyResult(session, history, history.enroll());
+    		break;
+    	case "의약의 역사" :
+    		applyResult(session, medicine, medicine.enroll());
+    		break;
+    	case "앙트레프레너십시대의 회계" :
+    		applyResult(session, accounting, accounting.enroll());
+    		break;
+    		default:
+    			System.out.println("subject error");
+    	}
 
+    	
     }
     
     private String getPlayerName(WebSocketSession session) {
