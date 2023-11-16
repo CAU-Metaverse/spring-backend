@@ -577,7 +577,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 //        }
     }
 
-    private void applyResult(WebSocketSession session, SubjectInfo subject, boolean result) {
+    private void applyResult(WebSocketSession session, SubjectInfo subject, boolean result, int credit) {
     	String uid = getPlayerName(session);
     	int leftSeats = subject.getLeftSeats();
     	
@@ -589,9 +589,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		dataField.put("USER",nickname.get(uid));
 		if(result) {
 			dataField.put("RESULT","SUCCESS");
-			AtomicInteger score = gameCredit.get(uid);
-			System.out.println(score.incrementAndGet());
-			
+			for(int i =0;i<credit;i++) {
+				AtomicInteger score = gameCredit.get(uid);
+				System.out.println(score.incrementAndGet());
+			}
 		}
 			
 		else {
@@ -646,27 +647,26 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 
     	switch(subject) {
     	case "연극과 뮤지컬":
-    		applyResult(session, musical, musical.enroll());
+    		applyResult(session, musical, musical.enroll(),3);
     		break;
     	case "글로벌 한자":
-    		applyResult(session, globalHanja, globalHanja.enroll());
+    		applyResult(session, globalHanja, globalHanja.enroll(),3);
     		break;
     	case "ACT" :
-    		applyResult(session, ACT, ACT.enroll());
+    		applyResult(session, ACT, ACT.enroll(),2);
     		break;
     	case "한국사" :
-    		applyResult(session, history, history.enroll());
+    		applyResult(session, history, history.enroll(),2);
     		break;
     	case "의약의 역사" :
-    		applyResult(session, medicine, medicine.enroll());
+    		applyResult(session, medicine, medicine.enroll(),3);
     		break;
     	case "앙트레프레너십시대의 회계" :
-    		applyResult(session, accounting, accounting.enroll());
+    		applyResult(session, accounting, accounting.enroll(),2);
     		break;
     		default:
     			System.out.println("subject error");
     	}
-
     	
     }
     
