@@ -106,7 +106,8 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			
 			try {
 				JSONObject dataField = new JSONObject();
-				dataField.put("USER",realUID.get(key));
+				dataField.put("USER",nickname.get(key));
+//				dataField.put("USER",realUID.get(key));
 				dataField.put("CHARACTER",character.get(key));
 				dataField.put("CREDIT",gameCredit.get(key).get());
     			dataArr.add(dataField);
