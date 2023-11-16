@@ -602,13 +602,27 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			
 		dataField.put("SEATS_LEFT",String.valueOf(leftSeats));
 		action_APPLYBACK.put("data",dataField);
-		try {
-          synchronized (session) {
-              session.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
-          }
-      } catch (IOException e) {
-          throw new RuntimeException(e);
-      }
+		
+		for(String key : sessions.keySet()) {
+			
+    		WebSocketSession toSendSession = sessions.get(key);
+    		try {
+    			synchronized(toSendSession) {
+    				toSendSession.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
+    			}
+    		}catch(Exception e) {
+    			e.printStackTrace();
+    		}
+    	}
+		
+		// 본인에게만 결과알려줌
+//		try {
+//          synchronized (session) {
+//              session.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
+//          }
+//      } catch (IOException e) {
+//          throw new RuntimeException(e);
+//      }
 		
 		/*
 		 * { "action": "APPLY",
