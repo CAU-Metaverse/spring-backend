@@ -360,16 +360,17 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 
         log.info(message);
 
-        if (session.isOpen()) {
-            try {
-                synchronized (session) {
-                    session.sendMessage(new TextMessage("currentPlayerName,"+getPlayerName(session)));
-                    
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        //내 이름 출력(디버깅용)
+//        if (session.isOpen()) {
+//            try {
+//                synchronized (session) {
+//                    session.sendMessage(new TextMessage("currentPlayerName,"+getPlayerName(session)));
+//                    
+//                }
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
         
 		JSONObject newUserConnected = new JSONObject();
 		newUserConnected.put("action","PLAYER_COUNT");
@@ -381,9 +382,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
             if (clientSession.isOpen()) {
                 try {
                     synchronized (session) {
-                        if(currentPlayers.length()>=1){
-                            clientSession.sendMessage(new TextMessage("currentSugangPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
-                        }
+                    	//전체 플레이어 목록(디버깅용)
+//                        if(currentPlayers.length()>=1){
+//                            clientSession.sendMessage(new TextMessage("currentSugangPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
+//                        }
                         // 현재 수강신청 발판 밟은인원
                         //clientSession.sendMessage(new TextMessage("currentPlayerCount,"+playerCount.get()));
                         //clientSession.sendMessage(new TextMessage(message)); // 새 유저 들어옴 알림.
