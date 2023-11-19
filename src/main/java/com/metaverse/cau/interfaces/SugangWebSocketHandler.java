@@ -106,7 +106,8 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			
 			try {
 				JSONObject dataField = new JSONObject();
-				dataField.put("USER",realUID.get(key));
+				dataField.put("USER",nickname.get(key));
+//				dataField.put("USER",realUID.get(key));
 				dataField.put("CHARACTER",character.get(key));
 				dataField.put("CREDIT",gameCredit.get(key).get());
     			dataArr.add(dataField);
@@ -359,16 +360,17 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 
         log.info(message);
 
-        if (session.isOpen()) {
-            try {
-                synchronized (session) {
-                    session.sendMessage(new TextMessage("currentPlayerName,"+getPlayerName(session)));
-                    
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
+        //내 이름 출력(디버깅용)
+//        if (session.isOpen()) {
+//            try {
+//                synchronized (session) {
+//                    session.sendMessage(new TextMessage("currentPlayerName,"+getPlayerName(session)));
+//                    
+//                }
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
         
 		JSONObject newUserConnected = new JSONObject();
 		newUserConnected.put("action","PLAYER_COUNT");
@@ -380,9 +382,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
             if (clientSession.isOpen()) {
                 try {
                     synchronized (session) {
-                        if(currentPlayers.length()>=1){
-                            clientSession.sendMessage(new TextMessage("currentSugangPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
-                        }
+                    	//전체 플레이어 목록(디버깅용)
+//                        if(currentPlayers.length()>=1){
+//                            clientSession.sendMessage(new TextMessage("currentSugangPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
+//                        }
                         // 현재 수강신청 발판 밟은인원
                         //clientSession.sendMessage(new TextMessage("currentPlayerCount,"+playerCount.get()));
                         //clientSession.sendMessage(new TextMessage(message)); // 새 유저 들어옴 알림.
@@ -576,7 +579,7 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 //        }
     }
 
-    private void applyResult(WebSocketSession session, SubjectInfo subject, boolean result) {
+    private void applyResult(WebSocketSession session, SubjectInfo subject, boolean result, int credit) {
     	String uid = getPlayerName(session);
     	int leftSeats = subject.getLeftSeats();
     	
@@ -588,9 +591,10 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		dataField.put("USER",nickname.get(uid));
 		if(result) {
 			dataField.put("RESULT","SUCCESS");
-			AtomicInteger score = gameCredit.get(uid);
-			System.out.println(score.incrementAndGet());
-			
+			for(int i =0;i<credit;i++) {
+				AtomicInteger score = gameCredit.get(uid);
+				System.out.println(score.incrementAndGet());
+			}
 		}
 			
 		else {
@@ -602,13 +606,27 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 			
 		dataField.put("SEATS_LEFT",String.valueOf(leftSeats));
 		action_APPLYBACK.put("data",dataField);
-		try {
-          synchronized (session) {
-              session.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
-          }
-      } catch (IOException e) {
-          throw new RuntimeException(e);
-      }
+		
+		for(String key : sessions.keySet()) {
+			
+    		WebSocketSession toSendSession = sessions.get(key);
+    		try {
+    			synchronized(toSendSession) {
+    				toSendSession.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
+    			}
+    		}catch(Exception e) {
+    			e.printStackTrace();
+    		}
+    	}
+		
+		// 본인에게만 결과알려줌
+//		try {
+//          synchronized (session) {
+//              session.sendMessage(new TextMessage(action_APPLYBACK.toJSONString()));
+//          }
+//      } catch (IOException e) {
+//          throw new RuntimeException(e);
+//      }
 		
 		/*
 		 * { "action": "APPLY",
@@ -631,27 +649,26 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 
     	switch(subject) {
     	case "연극과 뮤지컬":
-    		applyResult(session, musical, musical.enroll());
+    		applyResult(session, musical, musical.enroll(),3);
     		break;
     	case "글로벌 한자":
-    		applyResult(session, globalHanja, globalHanja.enroll());
+    		applyResult(session, globalHanja, globalHanja.enroll(),3);
     		break;
     	case "ACT" :
-    		applyResult(session, ACT, ACT.enroll());
+    		applyResult(session, ACT, ACT.enroll(),2);
     		break;
     	case "한국사" :
-    		applyResult(session, history, history.enroll());
+    		applyResult(session, history, history.enroll(),2);
     		break;
     	case "의약의 역사" :
-    		applyResult(session, medicine, medicine.enroll());
+    		applyResult(session, medicine, medicine.enroll(),3);
     		break;
     	case "앙트레프레너십시대의 회계" :
-    		applyResult(session, accounting, accounting.enroll());
+    		applyResult(session, accounting, accounting.enroll(),2);
     		break;
     		default:
     			System.out.println("subject error");
     	}
-
     	
     }
     
