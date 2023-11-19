@@ -130,7 +130,7 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
         if(action.equals("CHAT")){
             String chat = (String) decodedMap.get("chat");
             UserInfo userInfo = userInfoSessions.get(playerName);
-            ChatInfo chatInfo = new ChatInfo(userInfo.getHexColor(),userInfo.getNickname(),chat);
+            ChatInfo chatInfo = new ChatInfo(userInfo.getHexColor(),userInfo.getNickname(),chat,playerName);
             // 모든 연결된 클라이언트에게 메시지를 브로드캐스트합니다.
             for (WebSocketSession clientSession : sessions.values()) {
                 if (clientSession.isOpen()) {

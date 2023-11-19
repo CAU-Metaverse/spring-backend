@@ -12,4 +12,5 @@ public class ChatInfo {
     private String hexColor;
     private String nickname;
     private String chat;
+    private String playerNumber;
 }
