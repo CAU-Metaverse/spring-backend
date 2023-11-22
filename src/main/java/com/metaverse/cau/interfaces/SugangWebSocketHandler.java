@@ -558,25 +558,25 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         for(Map.Entry item : sessions.entrySet()){
             currentPlayers += (String) item.getKey()+",";
         }
-        
-//        JSONObject newUserDisconnected = new JSONObject();
-//		newUserDisconnected.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
-//		newUserDisconnected.put("RACE_JOINED_PLAYER_COUNT",sugangPlayerCount.toString()); //레이스에 참여중인 모든인원
-//        newUserDisconnected.put("RACE_SEATS",seatsLeft.get()); // 좌석수
-//        newUserDisconnected.put("RACE_WAIT_DEL",playerName); //새로 접속한 인원
-//        for (WebSocketSession clientSession : sessions.values()) {
-//            if (clientSession.isOpen()) {
-//                try {
-//                    synchronized (session) {
-//                        clientSession.sendMessage(new TextMessage("currentPlayers,"+currentPlayers.substring(0, currentPlayers.length() - 1)));
-//                                                
-//                        clientSession.sendMessage(new TextMessage(newUserDisconnected.toJSONString()));
-//                    }
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
-//        }
+
+
+		JSONObject newUserDisconnected = new JSONObject();
+		newUserDisconnected.put("action","PLAYER_COUNT");
+		JSONObject newUserData = new JSONObject();
+		newUserData.put("RACE_EVERY_PLAYER_COUNT",playerCount.toString()); //현재 레이스 접속한 모든인원
+		newUserDisconnected.put("data",newUserData);
+
+        for (WebSocketSession clientSession : sessions.values()) {
+            if (clientSession.isOpen()) {
+                try {
+                    synchronized (session) {
+						clientSession.sendMessage(new TextMessage(newUserDisconnected.toJSONString()));
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 
     private void applyResult(WebSocketSession session, SubjectInfo subject, boolean result, int credit) {
