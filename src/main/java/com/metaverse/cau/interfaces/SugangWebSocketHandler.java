@@ -244,6 +244,12 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
 		task = new TimerTask() {
 			@Override
 			public void run() {
+				System.out.println(sugangPlayerCount.get());
+				if(sugangPlayerCount.get()<=1) {
+					timer.cancel();
+					System.out.println("asdf");
+					timer = null;
+				}
 				if(secondsToPlay > 0) {
 					
 					JSONObject action_timerCountTillStart = new JSONObject();
@@ -543,14 +549,19 @@ public class SugangWebSocketHandler extends TextWebSocketHandler{
         	nickname.remove(playerName);
         if(character.containsKey(playerName))
         	character.remove(playerName);
-        if(gameSessions.containsKey(playerName))
+        if(gameSessions.containsKey(playerName)) {
         	gameSessions.remove(playerName);
+        	sugangPlayerCount.decrementAndGet();
+        }
+        	
         if(realUID.containsKey(playerName))
         	realUID.remove(playerName);
         if(gameCredit.containsKey(playerName))
         	gameCredit.remove(playerName);
         
+        
         playerCount.decrementAndGet();
+        
         System.out.println(playerName + " disconnected.");
         
         String message = "disconnected," + playerName;
