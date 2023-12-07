@@ -1,0 +1,10 @@
+jwt:
+  secret: aW1ub3R5b3VycGlsb3Rvcmp1bXBtYXN0ZXJpbW5vdHlvdXJwaWxvdG9yanVtcG1hc3Rlcg==
+#imnotyourpilotorjumpmaster * 3
+  access:
+    expiration: 80
+    header: Authorization
+
+  refresh:
+    expiration: 90
+    header: Authorization-refresh
